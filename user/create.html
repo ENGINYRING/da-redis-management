@@ -7,12 +7,16 @@ $redisController = new \DirectAdmin\RedisManagement\Controllers\RedisController;
 
 $username = getenv('USERNAME');
 
-if($redisController->createInstance($username))
+if($redisController->checkUserLimit($username))
 {
-    echo '<p>Redis instance is succesfully created. <a href="/CMD_PLUGINS/redis_management">Back to list</a>.</p>';
+    echo '<p>The maximum number of creations has been reached. <a class="btn btn-primary" href="/CMD_PLUGINS/redis_management">Back to list</a></p>';
+}
+elseif($redisController->createInstance($username))
+{
+    echo '<p>Redis instance is succesfully created. <a class="btn btn-primary" href="/CMD_PLUGINS/redis_management">Back to list</a></p>';
 }
 else
 {
-    echo '<p>Redis instance is not created, due to an unkown error. <a href="/CMD_PLUGINS/redis_management">Back to list</a>.</p>';
+    echo '<p>Redis instance is not created, due to an unkown error. <a class="btn btn-primary" href="/CMD_PLUGINS/redis_management">Back to list</a></p>';
 }
 ?>

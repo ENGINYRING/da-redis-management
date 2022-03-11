@@ -14,6 +14,9 @@ class RedisController
     private $_instances        = array();
     private $_basePath         = NULL;
     private $_nextInstancePort = NULL;
+    private $_limit            = false;
+    private $_userLimit        = 5;
+    private $_unlimitedUsers   = array();
 
     /**
      * Constructor
@@ -46,6 +49,24 @@ class RedisController
             }
 
             $this->_nextInstancePort = $this->_config['plugin']['startPort'];
+
+            if(isset($this->_config['plugin']['limit']))
+            {
+                $this->_limit = $this->_config['plugin']['limit'];
+            }
+
+            if(isset($this->_config['plugin']['userLimit']))
+            {
+                $this->_userLimit = $this->_config['plugin']['userLimit'];
+            }
+
+            if(isset($this->_config['plugin']['unlimitedUsers']))
+            {
+                if (is_array($this->_config['plugin']['unlimitedUsers']))
+                    $this->_unlimitedUsers = $this->_config['plugin']['unlimitedUsers'];
+                else
+                    $this->_unlimitedUsers = [$this->_config['plugin']['unlimitedUsers']];
+            }
 
             if (file_exists($this->_basePath . '/' . $this->_config['plugin']['dataFile']))
             {
@@ -190,6 +211,16 @@ class RedisController
 
             return TRUE;
         }
+    }
+
+    /**
+     * Check User Reach the Limit or not
+     */
+    public function checkUserLimit($username)
+    {
+        return $this->_limit&&isset($this->_instances[$username])&&
+            count($this->_instances[$username])>=$this->_userLimit&&
+            !in_array($username,$this->_unlimitedUsers);
     }
 
     /**

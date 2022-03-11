@@ -1,3 +1,5 @@
+# 适配Evolution皮肤，并适配ubuntu系统
+
 # DirectAdmin SSH Key Management Plugin
 Welcome to this repository of an unofficial DirectAdmin plugin for managing Redis instances. 
 
@@ -10,16 +12,20 @@ I developed and used this plugin for over a year now on our own servers, but I d
 This plugin works on every DirectAdmin server, but the included setup script is only for RHEL/CentOS with systemctl support. Maybe I will add install scripts for Ubuntu / Debian in the future.
 
 For enabeling, starting and stopping for redis instances it uses sudo with minimal permissions.
-## Plugin installation
-```
+
+## clone git repository
 cd /usr/local/directadmin/plugins
-git clone https://github.com/kbentlage/da-redis-management.git redis_management
-sh redis_management/scripts/install.sh
-```
+git clone https://github.com/icodex/da-redis-management.git redis_management
 
 ## Redis installation
 ```
 cd /usr/local/directadmin/plugins/redis_management/setup
+sh install.sh
+```
+
+## Plugin installation
+```
+cd /usr/local/directadmin/plugins/redis_management/scripts
 sh install.sh
 ```
 

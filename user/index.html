@@ -13,24 +13,26 @@ echo '<p><a href="/CMD_PLUGINS/redis_management/create.html">Create new redis in
 
 if($instances)
 {
-    echo '<table class="list table-highlight" cellpadding="3" cellspacing="1">
-    <tbody>
-    <tr>
-        <td class="listtitle">Host</td>
-        <td class="listtitle">Port</td>
-        <td class="listtitle">Password</td>
-        <td class="listtitle">Created</td>
-        <td class="listtitle">Delete</td>
-    </tr>';
+    echo '<table class="table table-hover">
+    <thead>
+    <tr class="table-row">
+        <td width="auto">Host</td>
+        <td width="auto">Port</td>
+        <td width="auto">Password</td>
+        <td width="auto">Created</td>
+        <td width="auto">Delete</td>
+    </tr>
+    </thead>
+    <tbody>';
 
     foreach($instances as $instance)
     {
-    echo '<tr>
-        <td valign="top" class="list">127.0.0.1</td>
-        <td valign="top" class="list">'.$instance['port'].'</td>
-        <td valign="top" class="list">'.$instance['password'].'</td>
-        <td valign="top" class="list">'.date('d-m-Y H:i', $instance['created']).'</td>
-        <td valign="top" class="list"><a href="/CMD_PLUGINS/redis_management/delete.html?PORT='.$instance['port'].'">Delete</a></td>
+    echo '<tr class="table-row">
+        <td>127.0.0.1</td>
+        <td>'.$instance['port'].'</td>
+        <td>'.$instance['password'].'</td>
+        <td>'.date('d-m-Y H:i', $instance['created']).'</td>
+        <td><a href="/CMD_PLUGINS/redis_management/delete.html?PORT='.$instance['port'].'">Delete</a></td>
     </tr>';
     }
 
