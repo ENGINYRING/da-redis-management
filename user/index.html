@@ -9,32 +9,23 @@ $username = getenv('USERNAME');
 
 $instances = $redisController->getInstances($username);
 
-echo '<p><a href="/CMD_PLUGINS/redis_management/create.html">Create new redis instance</a>.</p>';
-
 if($instances)
 {
     echo '<table class="table table-hover">
     <thead>
     <tr class="table-row">
-        <td width="auto">Host</td>
-        <td width="auto">Port</td>
-        <td width="auto">Password</td>
+        <td width="auto">Socket Path</td>
         <td width="auto">Created</td>
         <td width="auto">Delete</td>
     </tr>
     </thead>
     <tbody>';
 
-    foreach($instances as $instance)
-    {
     echo '<tr class="table-row">
-        <td>127.0.0.1</td>
-        <td>'.$instance['port'].'</td>
-        <td>'.$instance['password'].'</td>
-        <td>'.date('d-m-Y H:i', $instance['created']).'</td>
-        <td><a href="/CMD_PLUGINS/redis_management/delete.html?PORT='.$instance['port'].'">Delete</a></td>
+        <td>'.$instances['socket'].'</td>
+        <td>'.date('d-m-Y H:i', $instances['created']).'</td>
+        <td><a href="/CMD_PLUGINS/redis_management/delete.html?timestamp='.$instances['created'].'">Delete</a></td>
     </tr>';
-    }
 
     echo '</tbody></table>';
 }

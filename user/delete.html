@@ -5,12 +5,11 @@ require_once dirname(__DIR__) . '/php/bootstrap.php';
 
 $redisController = new \DirectAdmin\RedisManagement\Controllers\RedisController;
 
-if(isset($_GET['PORT']) && $_GET['PORT'] && ctype_digit($_GET['PORT']))
+if(isset($_GET['timestamp']) && $_GET['timestamp'] && ctype_digit($_GET['timestamp']))
 {
     $username   = getenv('USERNAME');
-    $port       = $_GET['PORT'];
 
-    if($redisController->deleteInstance($username, $port))
+    if($redisController->deleteInstance($username))
     {
         echo '<p>Redis instance is succesfully deleted. <a class="btn btn-primary" href="/CMD_PLUGINS/redis_management">Back to list</a>.</p>';
     }

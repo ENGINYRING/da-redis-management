@@ -13,7 +13,6 @@ class RedisController
     private $_config           = array();
     private $_instances        = array();
     private $_basePath         = NULL;
-    private $_nextInstancePort = NULL;
     private $_limit            = false;
     private $_userLimit        = 5;
     private $_unlimitedUsers   = array();
@@ -48,8 +47,6 @@ class RedisController
                 $this->_config = array_replace_recursive($this->_config, $localConfig);
             }
 
-            $this->_nextInstancePort = $this->_config['plugin']['startPort'];
-
             if(isset($this->_config['plugin']['limit']))
             {
                 $this->_limit = $this->_config['plugin']['limit'];
@@ -79,11 +76,6 @@ class RedisController
                     if (isset($json['instances']))
                     {
                         $this->_instances = $json['instances'];
-                    }
-
-                    if (isset($json['nextInstancePort']))
-                    {
-                        $this->_nextInstancePort = $json['nextInstancePort'];
                     }
                 }
             }
@@ -136,27 +128,20 @@ class RedisController
      */
     public function createInstance($username)
     {
-        $password = $this->_generatePassword();
-        $port     = $this->_nextInstancePort;
-
         // add instance
-        if ($this->_addInstanceData($username, $port, $password))
+        if ($this->_addInstanceData($username))
         {
             // create instance config
-            if ($this->_createInstanceConfig($port, $password))
+            if ($this->_createInstanceConfig($username))
             {
                 // save data
                 if ($this->_saveData())
                 {
-                    // create instance data dir
-                    if($this->_createInstanceDataDir($port))
-                    {
-                        // enable and start service
-                        $this->_enableService($port);
-                        $this->_startService($port);
+                    // enable and start service
+                    $this->_enableService($username);
+                    $this->_startService($username);
 
-                        return TRUE;
-                    }
+                    return TRUE;
                 }
             }
         }
@@ -168,21 +153,18 @@ class RedisController
      * Delete Instance
      *
      * @param $username
-     * @param $port
      *
      * @return bool
      */
-    public function deleteInstance($username, $port)
+    public function deleteInstance($username)
     {
-        $this->_disableService($port);
-        $this->_stopService($port);
+        $this->_disableService($username);
+        $this->_stopService($username);
 
-        if ($this->_deleteInstanceData($username, $port))
+        if ($this->_deleteInstanceData($username))
         {
-            if ($this->_deleteInstanceConfig($port))
+            if ($this->_deleteInstanceConfig($username))
             {
-                $this->_deleteInstanceDataDir($port);
-
                 // save data
                 if ($this->_saveData())
                 {
@@ -204,11 +186,7 @@ class RedisController
     {
         if(isset($this->_instances[$username]) && !empty($this->_instances[$username]))
         {
-            foreach($this->_instances[$username] as $port => $instance)
-            {
-                $this->deleteInstance($username, $port);
-            }
-
+            $this->deleteInstance($username);
             return TRUE;
         }
     }
@@ -227,21 +205,17 @@ class RedisController
      * Add Instance Data
      *
      * @param $username
-     * @param $port
-     * @param $password
+     * @param $socket
      *
      * @return bool
      */
-    private function _addInstanceData($username, $port, $password)
+    private function _addInstanceData($username)
     {
-        $this->_instances[$username][$port] = array(
+        $this->_instances[$username] = array(
             'username' => $username,
-            'port'     => $port,
-            'password' => $password,
+            'socket'   => '/home/'.$username.'/tmp/redis.sock',
             'created'  => time(),
         );
-
-        $this->_nextInstancePort++;
 
         return TRUE;
     }
@@ -250,22 +224,14 @@ class RedisController
      * Delete Instance Data
      *
      * @param $username
-     * @param $port
      *
      * @return bool
      */
-    private function _deleteInstanceData($username, $port)
+    private function _deleteInstanceData($username)
     {
-        if (isset($this->_instances[$username][$port]))
+        if (isset($this->_instances[$username]))
         {
-            unset($this->_instances[$username][$port]);
-
-            // if user has no instances anymore, remove entire user segment
-            if(!$this->_instances[$username])
-            {
-                unset($this->_instances[$username]);
-            }
-
+            unset($this->_instances[$username]);
             return TRUE;
         }
 
@@ -282,7 +248,6 @@ class RedisController
         // prepare data
         $data = array(
             'instances'        => $this->_instances,
-            'nextInstancePort' => $this->_nextInstancePort
         );
 
         // encode data to json
@@ -310,26 +275,21 @@ class RedisController
     /**
      * Create Instance Config
      *
-     * @param $port
-     * @param $password
+     * @param $user
      *
      * @return bool
      */
-    private function _createInstanceConfig($port, $password)
+    private function _createInstanceConfig($user)
     {
         // get redis template contents
         if ($templateContent = file_get_contents($this->_basePath . '/php/Templates/redis-instance.conf'))
         {
             // replace variables with actual values
             $replaceTokens = array(
-                '{{ port }}',
-                '{{ password }}',
-                '{{ dataDir }}',
+                '{{ user }}',
             );
             $replaceValues = array(
-                $port,
-                $password,
-                $this->_config['redis']['dataDir'],
+                $user,
             );
             $configContent = str_replace($replaceTokens, $replaceValues, $templateContent);
 
@@ -342,9 +302,9 @@ class RedisController
             }
 
             // save config file
-            if (file_put_contents($this->_config['redis']['configDir'] . '/' . $port . '.conf', $configContent))
+            if (file_put_contents($this->_config['redis']['configDir'] . '/' . $user . '.conf', $configContent))
             {
-                chmod($this->_config['redis']['configDir'] . '/' . $port . '.conf',0600);
+                chmod($this->_config['redis']['configDir'] . '/' . $user . '.conf',0644);
                 return TRUE;
             }
         }
@@ -355,65 +315,16 @@ class RedisController
     /**
      * Delete Instance Config
      *
-     * @param $port
+     * @param $user
      *
      * @return bool
      */
-    public function _deleteInstanceConfig($port)
+    public function _deleteInstanceConfig($user)
     {
-        if (file_exists($this->_config['redis']['configDir'] . '/' . $port . '.conf'))
+        if (file_exists($this->_config['redis']['configDir'] . '/' . $user . '.conf'))
         {
-            unlink($this->_config['redis']['configDir'] . '/' . $port . '.conf');
-
+            unlink($this->_config['redis']['configDir'] . '/' . $user . '.conf');
             return TRUE;
-        }
-
-        return FALSE;
-    }
-
-    /**
-     * Create Instance Data Dir
-     *
-     * @param $port
-     *
-     * @return bool
-     */
-    public function _createInstanceDataDir($port)
-    {
-        // check if redis data dir needs to be created
-        if (!is_dir($this->_config['redis']['dataDir'].'/'))
-        {
-            mkdir($this->_config['redis']['dataDir'].'/', 0755);
-            chown($this->_config['redis']['dataDir'].'/', $this->_config['redis']['user']);
-            chgrp($this->_config['redis']['dataDir'].'/', $this->_config['redis']['user']);
-        }
-
-        if(mkdir($this->_config['redis']['dataDir'].'/'.$port.'/', 0755))
-        {
-            chown($this->_config['redis']['dataDir'].'/'.$port.'/', $this->_config['redis']['user']);
-            chgrp($this->_config['redis']['dataDir'].'/'.$port.'/', $this->_config['redis']['user']);
-
-            return TRUE;
-        }
-
-        return FALSE;
-    }
-
-    /**
-     * Delete Instance Data Dir
-     *
-     * @param $port
-     *
-     * @return bool
-     */
-    public function _deleteInstanceDataDir($port)
-    {
-        if(is_dir($this->_config['redis']['dataDir'].'/'.$port))
-        {
-            if($this->_exec('rm -rf '.$this->_config['redis']['dataDir'].'/'.$port.'/'))
-            {
-                return TRUE;
-            }
         }
 
         return FALSE;
@@ -422,49 +333,49 @@ class RedisController
     /**
      * Enable Service
      *
-     * @param $port
+     * @param $user
      *
      * @return bool
      */
-    public function _enableService($port)
+    public function _enableService($user)
     {
-        return $this->_exec('sudo systemctl enable redis@' . $port);
+        return $this->_exec('sudo systemctl enable redis@' . $user);
     }
 
     /**
      * Disable Service
      *
-     * @param $port
+     * @param $user
      *
      * @return bool
      */
-    public function _disableService($port)
+    public function _disableService($user)
     {
-        return $this->_exec('sudo systemctl disable redis@' . $port);
+        return $this->_exec('sudo systemctl disable redis@' . $user);
     }
 
     /**
      * Start Service
      *
-     * @param $port
+     * @param $user
      *
      * @return bool
      */
-    public function _startService($port)
+    public function _startService($user)
     {
-        return $this->_exec('sudo systemctl start redis@' . $port);
+        return $this->_exec('sudo systemctl start redis@' . $user);
     }
 
     /**
      * Stop Service
      *
-     * @param $port
+     * @param $user
      *
      * @return bool
      */
-    public function _stopService($port)
+    public function _stopService($user)
     {
-        return $this->_exec('sudo systemctl stop redis@' . $port);
+        return $this->_exec('sudo systemctl stop redis@' . $user);
     }
 
     /**
@@ -482,62 +393,5 @@ class RedisController
         }
 
         return FALSE;
-    }
-
-    /**
-     * Generate Password
-     *
-     * @param int    $length
-     * @param bool   $add_dashes
-     * @param string $available_sets
-     *
-     * @return string
-     */
-    private function _generatePassword($length = 15, $add_dashes = FALSE, $available_sets = 'luds')
-    {
-        $sets = array();
-        if (strpos($available_sets, 'l') !== FALSE)
-        {
-            $sets[] = 'abcdefghjkmnpqrstuvwxyz';
-        }
-        if (strpos($available_sets, 'u') !== FALSE)
-        {
-            $sets[] = 'ABCDEFGHJKMNPQRSTUVWXYZ';
-        }
-        if (strpos($available_sets, 'd') !== FALSE)
-        {
-            $sets[] = '23456789';
-        }
-        if (strpos($available_sets, 's') !== FALSE)
-        {
-            $sets[] = '!@#$%&*?';
-        }
-        $all      = '';
-        $password = '';
-        foreach ($sets as $set)
-        {
-            $password .= $set[array_rand(str_split($set))];
-            $all .= $set;
-        }
-        $all = str_split($all);
-        for ($i = 0; $i < $length - count($sets); $i++)
-        {
-            $password .= $all[array_rand($all)];
-        }
-        $password = str_shuffle($password);
-        if (!$add_dashes)
-        {
-            return $password;
-        }
-        $dash_len = floor(sqrt($length));
-        $dash_str = '';
-        while (strlen($password) > $dash_len)
-        {
-            $dash_str .= substr($password, 0, $dash_len) . '-';
-            $password = substr($password, $dash_len);
-        }
-        $dash_str .= $password;
-
-        return $dash_str;
     }
 }

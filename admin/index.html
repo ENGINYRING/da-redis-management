@@ -13,8 +13,7 @@ if($instanceData)
     <thead>
     <tr class="table-row">
         <td width="auto">User</td>
-        <td width="auto">Host</td>
-        <td width="auto">Port</td>
+        <td width="auto">Socket</td>
         <td width="auto">Created</td>
     </tr>
     </thead>
@@ -22,15 +21,11 @@ if($instanceData)
 
     foreach($instanceData as $user => $instances)
     {
-        foreach($instances as $instance)
-        {
-            echo '<tr class="table-row">
-                <td><a href="/CMD_SHOW_USER?user='.$user.'">'.$user.'</a></td>
-                <td>127.0.0.1</td>
-                <td>'.$instance['port'].'</td>
-                <td>'.date('d-m-Y H:i', $instance['created']).'</td>
-            </tr>';
-        }
+        echo '<tr class="table-row">
+            <td><a href="/CMD_SHOW_USER?user='.$user.'">'.$user.'</a></td>
+            <td>'.$instances['socket'].'</td>
+            <td>'.date('d-m-Y H:i', $instances['created']).'</td>
+        </tr>';
     }
 
     echo '</tbody></table>';

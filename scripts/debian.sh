@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -x
+
 # Create log directory
 mkdir -p /usr/local/directadmin/plugins/redis_management/logs
 
@@ -15,7 +17,6 @@ chmod -R 0775 /usr/local/directadmin/plugins/redis_management/admin/*
 chmod -R 0775 /usr/local/directadmin/plugins/redis_management/user/*
 
 sed -i 's@/etc/redis.conf@/etc/redis/redis.conf@g' /usr/local/directadmin/plugins/redis_management/php/Templates/redis-instance.conf
-sed -i 's@/var/run/redis/{{ port }}.pid@/var/run/redis-{{ port }}/redis-server.pid@g' /usr/local/directadmin/plugins/redis_management/php/Templates/redis-instance.conf
 sed -i 's/redis@/redis-server@/g' /usr/local/directadmin/plugins/redis_management/php/Controllers/RedisController.php
 
 # Inject user_destroy_post script
