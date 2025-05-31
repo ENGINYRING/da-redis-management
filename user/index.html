@@ -3,34 +3,326 @@
 <?php
 require_once dirname(__DIR__) . '/php/bootstrap.php';
 
-$redisController = new \DirectAdmin\RedisManagement\Controllers\RedisController;
+/**
+ * Enhanced Redis Management User Interface with security and usability improvements
+ */
 
+$redisController = new \DirectAdmin\RedisManagement\Controllers\RedisController;
 $username = getenv('USERNAME');
 
-$instances = $redisController->getInstances($username);
-
-if($instances)
-{
-    echo '<table class="table table-hover">
-    <thead>
-    <tr class="table-row">
-        <td width="auto">Socket Path</td>
-        <td width="auto">Created</td>
-        <td width="auto">Delete</td>
-    </tr>
-    </thead>
-    <tbody>';
-
-    echo '<tr class="table-row">
-        <td>'.$instances['socket'].'</td>
-        <td>'.date('d-m-Y H:i', $instances['created']).'</td>
-        <td><a href="/CMD_PLUGINS/redis_management/delete.html?timestamp='.$instances['created'].'">Delete</a></td>
-    </tr>';
-
-    echo '</tbody></table>';
+// Validate username
+if (empty($username)) {
+    echo '<div class="alert alert-danger">Error: Unable to determine user account.</div>';
+    exit;
 }
-else
-{
-    echo '<p>No redis instances created yet. <a href="/CMD_PLUGINS/redis_management/create.html">Create new redis instance</a>.</p>';
+
+$instances = null;
+$errorMessage = null;
+
+try {
+    $instances = $redisController->getInstances($username);
+} catch (Exception $e) {
+    $errorMessage = 'Unable to retrieve Redis instances: ' . htmlspecialchars($e->getMessage());
+    error_log('Redis instances retrieval error for user ' . $username . ': ' . $e->getMessage());
 }
+
 ?>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fas fa-database text-primary"></i> Redis Management</h2>
+                <div class="btn-group" role="group">
+                    <?php if (!$instances && !$errorMessage): ?>
+                        <a href="/CMD_PLUGINS/redis_management/create.html" class="btn btn-success">
+                            <i class="fas fa-plus"></i> Create Redis Instance
+                        </a>
+                    <?php endif; ?>
+                    <a href="/CMD_PLUGINS" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to Plugins
+                    </a>
+                </div>
+            </div>
+
+            <?php if ($errorMessage): ?>
+                <div class="alert alert-danger">
+                    <h4><i class="fas fa-exclamation-triangle"></i> Error</h4>
+                    <p><?php echo $errorMessage; ?></p>
+                    <button onclick="location.reload()" class="btn btn-outline-danger">
+                        <i class="fas fa-sync-alt"></i> Retry
+                    </button>
+                </div>
+            <?php elseif ($instances): ?>
+                <!-- Instance exists -->
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h4 class="mb-0"><i class="fas fa-server"></i> Your Redis Instance</h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-lg-8">
+                                <table class="table table-borderless">
+                                    <tbody>
+                                        <tr>
+                                            <th style="width: 200px;"><i class="fas fa-plug text-muted"></i> Socket Path:</th>
+                                            <td>
+                                                <code class="user-select-all"><?php echo htmlspecialchars($instances['socket']); ?></code>
+                                                <button class="btn btn-sm btn-outline-secondary ms-2" onclick="copyToClipboard('<?php echo htmlspecialchars($instances['socket']); ?>')">
+                                                    <i class="fas fa-copy"></i> Copy
+                                                </button>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th><i class="fas fa-calendar text-muted"></i> Created:</th>
+                                            <td>
+                                                <?php 
+                                                echo date('F j, Y \a\t g:i A', $instances['created']);
+                                                $daysAgo = floor((time() - $instances['created']) / 86400);
+                                                if ($daysAgo > 0) {
+                                                    echo ' <small class="text-muted">(' . $daysAgo . ' day' . ($daysAgo != 1 ? 's' : '') . ' ago)</small>';
+                                                }
+                                                ?>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th><i class="fas fa-folder text-muted"></i> Data Directory:</th>
+                                            <td><code>/home/<?php echo htmlspecialchars($username); ?>/redis/</code></td>
+                                        </tr>
+                                        <tr>
+                                            <th><i class="fas fa-file-alt text-muted"></i> Log File:</th>
+                                            <td><code>/home/<?php echo htmlspecialchars($username); ?>/redis/redis.log</code></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="col-lg-4">
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <h6 class="card-title"><i class="fas fa-lightbulb text-warning"></i> Quick Start</h6>
+                                        <p class="card-text small">Connect using Redis CLI:</p>
+                                        <pre class="bg-dark text-light p-2 rounded small"><code>redis-cli -s <?php echo htmlspecialchars($instances['socket']); ?></code></pre>
+                                        <p class="card-text small mt-2">PHP connection:</p>
+                                        <pre class="bg-dark text-light p-2 rounded small"><code>$redis = new Redis();
+$redis->connect('<?php echo htmlspecialchars($instances['socket']); ?>');</code></pre>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <hr>
+                        
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="text-muted">
+                                <small><i class="fas fa-info-circle"></i> Instance ID: <?php echo htmlspecialchars($instances['created']); ?></small>
+                            </div>
+                            <div>
+                                <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal">
+                                    <i class="fas fa-trash"></i> Delete Instance
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Delete Confirmation Modal -->
+                <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header bg-danger text-white">
+                                <h5 class="modal-title" id="deleteModalLabel">
+                                    <i class="fas fa-exclamation-triangle"></i> Confirm Deletion
+                                </h5>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p><strong>Are you sure you want to delete your Redis instance?</strong></p>
+                                <div class="alert alert-warning">
+                                    <ul class="mb-0">
+                                        <li>All data stored in Redis will be permanently lost</li>
+                                        <li>The Redis service will be stopped and disabled</li>
+                                        <li>Configuration files will be removed</li>
+                                        <li>This action cannot be undone</li>
+                                    </ul>
+                                </div>
+                                <p>If you're sure, click "Delete Instance" below.</p>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                    <i class="fas fa-times"></i> Cancel
+                                </button>
+                                <a href="/CMD_PLUGINS/redis_management/delete.html?timestamp=<?php echo urlencode($instances['created']); ?>" 
+                                   class="btn btn-danger">
+                                    <i class="fas fa-trash"></i> Delete Instance
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            <?php else: ?>
+                <!-- No instance exists -->
+                <div class="card">
+                    <div class="card-body text-center py-5">
+                        <i class="fas fa-database fa-3x text-muted mb-3"></i>
+                        <h4>No Redis Instance Found</h4>
+                        <p class="text-muted mb-4">You don't have any Redis instances configured yet.</p>
+                        <p>Redis is an in-memory data structure store that can be used as a database, cache, and message broker.</p>
+                        
+                        <div class="row justify-content-center mt-4">
+                            <div class="col-md-8">
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <h6><i class="fas fa-star text-warning"></i> Benefits of Redis:</h6>
+                                        <ul class="text-start list-unstyled">
+                                            <li><i class="fas fa-check text-success"></i> Lightning-fast performance</li>
+                                            <li><i class="fas fa-check text-success"></i> Support for various data structures</li>
+                                            <li><i class="fas fa-check text-success"></i> Perfect for caching and sessions</li>
+                                            <li><i class="fas fa-check text-success"></i> Easy integration with web applications</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <a href="/CMD_PLUGINS/redis_management/create.html" class="btn btn-primary btn-lg mt-4">
+                            <i class="fas fa-plus"></i> Create Your First Redis Instance
+                        </a>
+                    </div>
+                </div>
+            <?php endif; ?>
+        </div>
+    </div>
+</div>
+
+<style>
+.user-select-all {
+    user-select: all;
+    cursor: pointer;
+}
+
+.card {
+    border: none;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+.card-header {
+    border-bottom: 1px solid rgba(0,0,0,.125);
+}
+
+pre {
+    font-size: 0.8rem;
+    margin-bottom: 0;
+}
+
+.table th {
+    border-top: none;
+    font-weight: 600;
+}
+
+.table td {
+    border-top: 1px solid #dee2e6;
+}
+
+.btn-group .btn {
+    margin-left: 0.25rem;
+}
+
+.modal-content {
+    border: none;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+@media (max-width: 768px) {
+    .d-flex.justify-content-between {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .btn-group {
+        align-self: stretch;
+    }
+    
+    .btn-group .btn {
+        flex: 1;
+    }
+}
+</style>
+
+<script>
+// Copy to clipboard functionality
+function copyToClipboard(text) {
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).then(function() {
+            showToast('Socket path copied to clipboard!', 'success');
+        }).catch(function(err) {
+            console.error('Failed to copy: ', err);
+            fallbackCopyTextToClipboard(text);
+        });
+    } else {
+        fallbackCopyTextToClipboard(text);
+    }
+}
+
+// Fallback copy method for older browsers
+function fallbackCopyTextToClipboard(text) {
+    var textArea = document.createElement("textarea");
+    textArea.value = text;
+    textArea.style.position = "fixed";
+    textArea.style.left = "-999999px";
+    textArea.style.top = "-999999px";
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    
+    try {
+        var successful = document.execCommand('copy');
+        if (successful) {
+            showToast('Socket path copied to clipboard!', 'success');
+        } else {
+            showToast('Failed to copy socket path', 'error');
+        }
+    } catch (err) {
+        console.error('Fallback: Could not copy text: ', err);
+        showToast('Copy not supported by your browser', 'error');
+    }
+    
+    document.body.removeChild(textArea);
+}
+
+// Simple toast notification
+function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type === 'error' ? 'danger' : type} position-fixed`;
+    toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; max-width: 300px;';
+    toast.innerHTML = `
+        <div class="d-flex align-items-center">
+            <i class="fas fa-${type === 'success' ? 'check' : type === 'error' ? 'exclamation-triangle' : 'info-circle'} me-2"></i>
+            ${message}
+        </div>
+    `;
+    
+    document.body.appendChild(toast);
+    
+    // Auto-remove after 3 seconds
+    setTimeout(() => {
+        if (toast.parentNode) {
+            toast.parentNode.removeChild(toast);
+        }
+    }, 3000);
+}
+
+// Bootstrap modal handling (if Bootstrap 5 is available)
+document.addEventListener('DOMContentLoaded', function() {
+    // Focus management for accessibility
+    const modal = document.getElementById('deleteModal');
+    if (modal) {
+        modal.addEventListener('shown.bs.modal', function() {
+            const cancelButton = modal.querySelector('.btn-secondary');
+            if (cancelButton) {
+                cancelButton.focus();
+            }
+        });
+    }
+});
+</script>
