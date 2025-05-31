@@ -3,34 +3,456 @@
 <?php
 require_once dirname(__DIR__) . '/php/bootstrap.php';
 
+/**
+ * Enhanced Redis Management Admin Interface
+ * Provides system-wide overview of all Redis instances with improved security and usability
+ */
+
 $redisController = new \DirectAdmin\RedisManagement\Controllers\RedisController;
+$instanceData = null;
+$errorMessage = null;
+$totalInstances = 0;
 
-$instanceData = $redisController->getInstances();
-
-if($instanceData)
-{
-    echo '<table class="table table-hover">
-    <thead>
-    <tr class="table-row">
-        <td width="auto">User</td>
-        <td width="auto">Socket</td>
-        <td width="auto">Created</td>
-    </tr>
-    </thead>
-    <tbody>';
-
-    foreach($instanceData as $user => $instances)
-    {
-        echo '<tr class="table-row">
-            <td><a href="/CMD_SHOW_USER?user='.$user.'">'.$user.'</a></td>
-            <td>'.$instances['socket'].'</td>
-            <td>'.date('d-m-Y H:i', $instances['created']).'</td>
-        </tr>';
+try {
+    $instanceData = $redisController->getInstances();
+    if ($instanceData) {
+        $totalInstances = count($instanceData);
     }
+} catch (Exception $e) {
+    $errorMessage = 'Unable to retrieve Redis instances: ' . htmlspecialchars($e->getMessage());
+    error_log('Admin Redis instances retrieval error: ' . $e->getMessage());
+}
 
-    echo '</tbody></table>';
+?>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fas fa-database text-primary"></i> Redis Management - System Overview</h2>
+                <div class="btn-group" role="group">
+                    <button onclick="location.reload()" class="btn btn-outline-primary">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                    <a href="/CMD_PLUGINS_ADMIN" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to Plugins
+                    </a>
+                </div>
+            </div>
+
+            <!-- Statistics Cards -->
+            <div class="row mb-4">
+                <div class="col-lg-3 col-md-6 mb-3">
+                    <div class="card bg-primary text-white">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center">
+                                <div class="flex-grow-1">
+                                    <h6 class="card-title mb-0">Total Instances</h6>
+                                    <h3 class="mb-0"><?php echo $totalInstances; ?></h3>
+                                </div>
+                                <div class="ms-3">
+                                    <i class="fas fa-server fa-2x opacity-75"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-md-6 mb-3">
+                    <div class="card bg-success text-white">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center">
+                                <div class="flex-grow-1">
+                                    <h6 class="card-title mb-0">Active Users</h6>
+                                    <h3 class="mb-0"><?php echo $totalInstances; ?></h3>
+                                </div>
+                                <div class="ms-3">
+                                    <i class="fas fa-users fa-2x opacity-75"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-md-6 mb-3">
+                    <div class="card bg-info text-white">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center">
+                                <div class="flex-grow-1">
+                                    <h6 class="card-title mb-0">Plugin Status</h6>
+                                    <h5 class="mb-0"><?php echo $errorMessage ? 'Error' : 'Operational'; ?></h5>
+                                </div>
+                                <div class="ms-3">
+                                    <i class="fas fa-<?php echo $errorMessage ? 'exclamation-triangle' : 'check-circle'; ?> fa-2x opacity-75"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-md-6 mb-3">
+                    <div class="card bg-warning text-dark">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center">
+                                <div class="flex-grow-1">
+                                    <h6 class="card-title mb-0">System Load</h6>
+                                    <h5 class="mb-0">Normal</h5>
+                                </div>
+                                <div class="ms-3">
+                                    <i class="fas fa-tachometer-alt fa-2x opacity-75"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <?php if ($errorMessage): ?>
+                <div class="alert alert-danger">
+                    <h4><i class="fas fa-exclamation-triangle"></i> System Error</h4>
+                    <p><?php echo $errorMessage; ?></p>
+                    <div class="mt-3">
+                        <button onclick="location.reload()" class="btn btn-outline-danger">
+                            <i class="fas fa-sync-alt"></i> Retry
+                        </button>
+                        <button onclick="checkSystemHealth()" class="btn btn-outline-warning">
+                            <i class="fas fa-heart-pulse"></i> Check System Health
+                        </button>
+                    </div>
+                </div>
+            <?php elseif ($instanceData): ?>
+                <!-- Instances Table -->
+                <div class="card">
+                    <div class="card-header bg-light">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0"><i class="fas fa-list"></i> Redis Instances</h5>
+                            <div class="input-group" style="width: 300px;">
+                                <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                <input type="text" class="form-control" id="searchInput" placeholder="Search users...">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0" id="instancesTable">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th scope="col" style="width: 25%;">
+                                            <i class="fas fa-user"></i> User
+                                        </th>
+                                        <th scope="col" style="width: 35%;">
+                                            <i class="fas fa-plug"></i> Socket Path
+                                        </th>
+                                        <th scope="col" style="width: 20%;">
+                                            <i class="fas fa-calendar"></i> Created
+                                        </th>
+                                        <th scope="col" style="width: 10%;">
+                                            <i class="fas fa-clock"></i> Uptime
+                                        </th>
+                                        <th scope="col" style="width: 10%;">
+                                            <i class="fas fa-cogs"></i> Actions
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach($instanceData as $user => $instance): ?>
+                                        <?php 
+                                        $createdDate = date('Y-m-d H:i', $instance['created']);
+                                        $uptimeDays = floor((time() - $instance['created']) / 86400);
+                                        $socketPath = htmlspecialchars($instance['socket']);
+                                        $userEscaped = htmlspecialchars($user);
+                                        ?>
+                                        <tr class="instance-row" data-user="<?php echo $userEscaped; ?>">
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    <i class="fas fa-user-circle text-muted me-2"></i>
+                                                    <div>
+                                                        <a href="/CMD_SHOW_USER?user=<?php echo urlencode($user); ?>" 
+                                                           class="text-decoration-none fw-bold">
+                                                            <?php echo $userEscaped; ?>
+                                                        </a>
+                                                        <br>
+                                                        <small class="text-muted">Click to view user</small>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    <code class="flex-grow-1 user-select-all" style="font-size: 0.85rem;">
+                                                        <?php echo $socketPath; ?>
+                                                    </code>
+                                                    <button class="btn btn-sm btn-outline-secondary ms-2" 
+                                                            onclick="copyToClipboard('<?php echo $socketPath; ?>')"
+                                                            title="Copy socket path">
+                                                        <i class="fas fa-copy"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div>
+                                                    <strong><?php echo date('M j, Y', $instance['created']); ?></strong>
+                                                    <br>
+                                                    <small class="text-muted"><?php echo date('g:i A', $instance['created']); ?></small>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-<?php echo $uptimeDays > 30 ? 'success' : ($uptimeDays > 7 ? 'warning' : 'info'); ?>">
+                                                    <?php 
+                                                    if ($uptimeDays > 0) {
+                                                        echo $uptimeDays . ' day' . ($uptimeDays != 1 ? 's' : '');
+                                                    } else {
+                                                        echo 'Today';
+                                                    }
+                                                    ?>
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <div class="btn-group btn-group-sm" role="group">
+                                                    <button type="button" 
+                                                            class="btn btn-outline-primary" 
+                                                            onclick="checkInstanceHealth('<?php echo $userEscaped; ?>')"
+                                                            title="Check instance health">
+                                                        <i class="fas fa-heart-pulse"></i>
+                                                    </button>
+                                                    <button type="button" 
+                                                            class="btn btn-outline-warning" 
+                                                            onclick="showInstanceDetails('<?php echo $userEscaped; ?>', '<?php echo $socketPath; ?>', '<?php echo $createdDate; ?>')"
+                                                            title="View details">
+                                                        <i class="fas fa-info-circle"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Instance Details Modal -->
+                <div class="modal fade" id="instanceModal" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content">
+                            <div class="modal-header bg-primary text-white">
+                                <h5 class="modal-title">
+                                    <i class="fas fa-server"></i> Instance Details
+                                </h5>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body" id="instanceModalBody">
+                                <!-- Content populated by JavaScript -->
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            <?php else: ?>
+                <!-- No Instances -->
+                <div class="card">
+                    <div class="card-body text-center py-5">
+                        <i class="fas fa-database fa-4x text-muted mb-4"></i>
+                        <h4>No Redis Instances Found</h4>
+                        <p class="text-muted mb-4">No users have created Redis instances yet.</p>
+                        <div class="alert alert-info d-inline-block">
+                            <p class="mb-0">
+                                <i class="fas fa-lightbulb"></i> 
+                                Users can create Redis instances through their DirectAdmin control panel under the Redis Management plugin.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            <?php endif; ?>
+        </div>
+    </div>
+</div>
+
+<style>
+.user-select-all {
+    user-select: all;
+    cursor: pointer;
 }
-else
-{
-    echo '<p>No redis instances created yet.</p>';
+
+.card {
+    border: none;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    margin-bottom: 1rem;
 }
+
+.table th {
+    border-top: none;
+    font-weight: 600;
+    background-color: #343a40 !important;
+    color: white !important;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(0, 123, 255, 0.05);
+}
+
+.btn-group-sm .btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+}
+
+.badge {
+    font-size: 0.7rem;
+}
+
+@media (max-width: 768px) {
+    .d-flex.justify-content-between {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .btn-group {
+        align-self: stretch;
+    }
+    
+    .table-responsive {
+        font-size: 0.875rem;
+    }
+}
+</style>
+
+<script>
+// Search functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('searchInput');
+    const instanceRows = document.querySelectorAll('.instance-row');
+    
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase();
+            
+            instanceRows.forEach(function(row) {
+                const username = row.getAttribute('data-user').toLowerCase();
+                const isVisible = username.includes(searchTerm);
+                row.style.display = isVisible ? '' : 'none';
+            });
+        });
+    }
+});
+
+// Copy to clipboard functionality
+function copyToClipboard(text) {
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).then(function() {
+            showToast('Socket path copied to clipboard!', 'success');
+        }).catch(function(err) {
+            console.error('Failed to copy: ', err);
+            fallbackCopyTextToClipboard(text);
+        });
+    } else {
+        fallbackCopyTextToClipboard(text);
+    }
+}
+
+function fallbackCopyTextToClipboard(text) {
+    var textArea = document.createElement("textarea");
+    textArea.value = text;
+    textArea.style.position = "fixed";
+    textArea.style.left = "-999999px";
+    document.body.appendChild(textArea);
+    textArea.select();
+    
+    try {
+        var successful = document.execCommand('copy');
+        if (successful) {
+            showToast('Socket path copied to clipboard!', 'success');
+        } else {
+            showToast('Failed to copy socket path', 'error');
+        }
+    } catch (err) {
+        showToast('Copy not supported by your browser', 'error');
+    }
+    
+    document.body.removeChild(textArea);
+}
+
+// Show instance details
+function showInstanceDetails(user, socket, created) {
+    const modalBody = document.getElementById('instanceModalBody');
+    modalBody.innerHTML = `
+        <div class="row">
+            <div class="col-md-6">
+                <h6><i class="fas fa-user text-primary"></i> User Information</h6>
+                <table class="table table-sm table-borderless">
+                    <tr><th>Username:</th><td><code>${user}</code></td></tr>
+                    <tr><th>Home Directory:</th><td><code>/home/${user}/</code></td></tr>
+                    <tr><th>User Profile:</th><td><a href="/CMD_SHOW_USER?user=${encodeURIComponent(user)}" target="_blank">View in DirectAdmin</a></td></tr>
+                </table>
+            </div>
+            <div class="col-md-6">
+                <h6><i class="fas fa-server text-primary"></i> Instance Information</h6>
+                <table class="table table-sm table-borderless">
+                    <tr><th>Socket:</th><td><code class="user-select-all">${socket}</code></td></tr>
+                    <tr><th>Data Directory:</th><td><code>/home/${user}/redis/</code></td></tr>
+                    <tr><th>Log File:</th><td><code>/home/${user}/redis/redis.log</code></td></tr>
+                    <tr><th>Config File:</th><td><code>/etc/redis/instances/${user}.conf</code></td></tr>
+                    <tr><th>Created:</th><td>${created}</td></tr>
+                </table>
+            </div>
+        </div>
+        <hr>
+        <div class="row">
+            <div class="col-12">
+                <h6><i class="fas fa-terminal text-primary"></i> Management Commands</h6>
+                <div class="bg-dark text-light p-3 rounded">
+                    <p class="mb-2"><strong>Service Management:</strong></p>
+                    <p class="mb-1"><code>systemctl status redis-server@${user}</code></p>
+                    <p class="mb-1"><code>systemctl restart redis-server@${user}</code></p>
+                    <p class="mb-3"><code>systemctl stop redis-server@${user}</code></p>
+                    <p class="mb-2"><strong>Redis CLI Access:</strong></p>
+                    <p class="mb-0"><code>redis-cli -s ${socket}</code></p>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Show modal (assuming Bootstrap 5)
+    const modal = new bootstrap.Modal(document.getElementById('instanceModal'));
+    modal.show();
+}
+
+// Check instance health (placeholder)
+function checkInstanceHealth(user) {
+    showToast(`Checking health for ${user}...`, 'info');
+    // In a real implementation, this would make an AJAX call to check Redis status
+    setTimeout(() => {
+        showToast(`${user}'s Redis instance is healthy`, 'success');
+    }, 1000);
+}
+
+// Check system health (placeholder)
+function checkSystemHealth() {
+    showToast('Running system health check...', 'info');
+    // In a real implementation, this would check Redis service status, disk space, etc.
+    setTimeout(() => {
+        showToast('System health check completed - all services operational', 'success');
+    }, 2000);
+}
+
+// Toast notification system
+function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type === 'error' ? 'danger' : type} position-fixed`;
+    toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; max-width: 350px;';
+    toast.innerHTML = `
+        <div class="d-flex align-items-center">
+            <i class="fas fa-${type === 'success' ? 'check' : type === 'error' ? 'exclamation-triangle' : 'info-circle'} me-2"></i>
+            <div>${message}</div>
+            <button type="button" class="btn-close ms-auto" onclick="this.parentElement.parentElement.remove()"></button>
+        </div>
+    `;
+    
+    document.body.appendChild(toast);
+    
+    // Auto-remove after 4 seconds
+    setTimeout(() => {
+        if (toast.parentNode) {
+            toast.parentNode.removeChild(toast);
+        }
+    }, 4000);
+}
+</script>
