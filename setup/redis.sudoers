@@ -1,2 +1,14 @@
-redis   ALL=(ALL)       NOPASSWD: /usr/bin/systemctl enable redis@*, /usr/bin/systemctl disable redis@*, /usr/bin/systemctl start redis@*, /usr/bin/systemctl stop redis@*
+# Sudo rules for DirectAdmin Redis Management Plugin
+# Allows redis user to manage only redis-server@ instances with validated usernames
+
+# Restrict to specific service patterns only (alphanumeric, underscore, hyphen)
+redis   ALL=(ALL)       NOPASSWD: /usr/bin/systemctl enable redis-server@[a-zA-Z0-9_][a-zA-Z0-9_-]*, \
+                                  /usr/bin/systemctl disable redis-server@[a-zA-Z0-9_][a-zA-Z0-9_-]*, \
+                                  /usr/bin/systemctl start redis-server@[a-zA-Z0-9_][a-zA-Z0-9_-]*, \
+                                  /usr/bin/systemctl stop redis-server@[a-zA-Z0-9_][a-zA-Z0-9_-]*, \
+                                  /usr/bin/systemctl status redis-server@[a-zA-Z0-9_][a-zA-Z0-9_-]*
+
+# Security settings for redis user
 Defaults:redis !requiretty
+Defaults:redis env_reset
+Defaults:redis secure_path="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
