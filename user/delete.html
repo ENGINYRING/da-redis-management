@@ -3,23 +3,106 @@
 <?php
 require_once dirname(__DIR__) . '/php/bootstrap.php';
 
+/**
+ * Secure Redis instance deletion with proper access controls
+ */
+
 $redisController = new \DirectAdmin\RedisManagement\Controllers\RedisController;
+$username = getenv('USERNAME');
 
-if(isset($_GET['timestamp']) && $_GET['timestamp'] && ctype_digit($_GET['timestamp']))
-{
-    $username   = getenv('USERNAME');
-
-    if($redisController->deleteInstance($username))
-    {
-        echo '<p>Redis instance is succesfully deleted. <a class="btn btn-primary" href="/CMD_PLUGINS/redis_management">Back to list</a>.</p>';
-    }
-    else
-    {
-        echo '<p>Redis instance is not deleted, due to an unkown error. <a class="btn btn-primary" href="/CMD_PLUGINS/redis_management">Back to list</a>.</p>';
-    }
+// Validate username from environment
+if (empty($username)) {
+    echo '<div class="alert alert-danger">Error: No username provided. <a class="btn btn-primary" href="/CMD_PLUGINS/redis_management">Back to list</a></div>';
+    exit;
 }
-else
-{
-    echo '<p>Invalid request. <a class="btn btn-primary" href="/CMD_PLUGINS/redis_management">Back to list</a>.</p>';
+
+// Validate timestamp parameter
+if (!isset($_GET['timestamp']) || empty($_GET['timestamp'])) {
+    echo '<div class="alert alert-danger">Error: Invalid request - no timestamp provided. <a class="btn btn-primary" href="/CMD_PLUGINS/redis_management">Back to list</a></div>';
+    exit;
+}
+
+$timestamp = $_GET['timestamp'];
+
+// Validate timestamp format
+if (!ctype_digit($timestamp)) {
+    echo '<div class="alert alert-danger">Error: Invalid timestamp format. <a class="btn btn-primary" href="/CMD_PLUGINS/redis_management">Back to list</a></div>';
+    exit;
+}
+
+// Convert to integer
+$timestamp = (int)$timestamp;
+
+// Additional validation: timestamp should be reasonable
+if ($timestamp < 1000000000 || $timestamp > time()) {
+    echo '<div class="alert alert-danger">Error: Invalid timestamp value. <a class="btn btn-primary" href="/CMD_PLUGINS/redis_management">Back to list</a></div>';
+    exit;
+}
+
+try {
+    // Verify user owns this instance before attempting deletion
+    if (!$redisController->canUserDeleteInstance($username, $timestamp)) {
+        echo '<div class="alert alert-danger">Error: You do not have permission to delete this Redis instance. <a class="btn btn-primary" href="/CMD_PLUGINS/redis_management">Back to list</a></div>';
+        exit;
+    }
+
+    // Attempt to delete the instance
+    $result = $redisController->deleteInstance($username, $timestamp);
+    
+    if ($result === true) {
+        echo '<div class="alert alert-success">
+            <h4>Success!</h4>
+            <p>Redis instance has been successfully deleted.</p>
+            <p>All associated configuration files and services have been removed.</p>
+            <a class="btn btn-primary" href="/CMD_PLUGINS/redis_management">Back to Redis Management</a>
+        </div>';
+    } else {
+        // $result contains error message
+        $errorMessage = htmlspecialchars($result, ENT_QUOTES, 'UTF-8');
+        echo '<div class="alert alert-danger">
+            <h4>Deletion Failed</h4>
+            <p>Redis instance could not be deleted: ' . $errorMessage . '</p>
+            <a class="btn btn-primary" href="/CMD_PLUGINS/redis_management">Back to list</a>
+        </div>';
+    }
+} catch (Exception $e) {
+    // Log the error (in a real implementation, this should go to a proper log)
+    error_log('Redis deletion error for user ' . $username . ': ' . $e->getMessage());
+    
+    echo '<div class="alert alert-danger">
+        <h4>System Error</h4>
+        <p>An internal error occurred while processing your request. Please try again later or contact support if the problem persists.</p>
+        <a class="btn btn-primary" href="/CMD_PLUGINS/redis_management">Back to list</a>
+    </div>';
 }
 ?>
+
+<script>
+// Auto-redirect after successful deletion
+document.addEventListener('DOMContentLoaded', function() {
+    const successAlert = document.querySelector('.alert-success');
+    if (successAlert) {
+        // Redirect to main page after 3 seconds
+        setTimeout(function() {
+            window.location.href = '/CMD_PLUGINS/redis_management';
+        }, 3000);
+        
+        // Show countdown
+        const countdownElement = document.createElement('p');
+        countdownElement.innerHTML = '<small><em>Redirecting in <span id="countdown">3</span> seconds...</em></small>';
+        successAlert.appendChild(countdownElement);
+        
+        let countdown = 3;
+        const interval = setInterval(function() {
+            countdown--;
+            const countdownSpan = document.getElementById('countdown');
+            if (countdownSpan) {
+                countdownSpan.textContent = countdown;
+            }
+            if (countdown <= 0) {
+                clearInterval(interval);
+            }
+        }, 1000);
+    }
+});
+</script>
