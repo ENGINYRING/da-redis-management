@@ -1,10 +1,17 @@
 [Unit]
-Description=Start all redis instances
+Description=Redis Server Manager
+Documentation=http://redis.io/documentation, man:redis-server(1)
+After=network.target
+Wants=network.target
 
 [Service]
 Type=oneshot
 ExecStart=/bin/true
 RemainAfterExit=yes
+# Create redis run directory
+ExecStartPre=/bin/mkdir -p /run/redis
+ExecStartPre=/bin/chown redis:redis /run/redis
+ExecStartPre=/bin/chmod 755 /run/redis
 
 [Install]
 WantedBy=multi-user.target
