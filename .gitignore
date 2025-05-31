@@ -1,24 +1,274 @@
-.zip
+# DirectAdmin Redis Management Plugin - Git Ignore File
+
+# Compressed files
+*.zip
 *.rar
 *.tar
 *.tar.gz
 *.tgz
 *.gzip
 *.gz
-.idea/*
-*.orig
-*.log
-*.bat
-*.DS_Store
-**/__MACOSX
+*.7z
+*.bz2
+*.xz
 
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+._.DS_Store
+Thumbs.db
+*.sublime-project
+*.sublime-workspace
+
+# OS generated files
+**/__MACOSX/
+.DS_*
+._.DS_*
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Backup and temporary files
+*.orig
+*.tmp
+*.bak
+*.backup
+*~
+
+# Log files
+*.log
+logs/*
+!logs/.gitkeep
+
+# Data and cache files
+data/*
+!data/.gitkeep
+cache/*
+!cache/.gitkeep
+tmp/*
+!tmp/.gitkeep
+
+# Configuration files (security sensitive)
+php/Config/local.php
+php/Config/production.php
+php/Config/staging.php
+
+# Analytics and tracking
 /analytics/*
 
-\.DS_*
-\._.DS_*
-Thumbs\.db
-test\*
-data\*
-logs\*
+# Test files and directories
+test/*
+tests/*
+phpunit.xml
+.phpunit.result.cache
 
-php/Config/local.php
+# Composer dependencies
+vendor/
+composer.lock
+
+# NPM dependencies (if any frontend tools are added)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+
+# Environment files
+.env
+.env.local
+.env.production
+.env.staging
+.env.test
+
+# Security and certificate files
+*.pem
+*.key
+*.cert
+*.crt
+*.p12
+*.pfx
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Redis data files (these should be in user directories anyway)
+dump.rdb
+appendonly.aof
+*.rdb
+*.aof
+
+# Build and distribution files
+build/
+dist/
+*.min.js
+*.min.css
+
+# Documentation build files
+docs/_build/
+site/
+
+# Coverage reports
+coverage/
+*.coverage
+htmlcov/
+
+# PHP specific
+*.phar
+.phpunit.result.cache
+
+# System and runtime files
+.pid
+*.pid
+*.sock
+*.socket
+
+# Deployment and CI/CD files
+.github/workflows/secrets/
+deployment-key*
+deploy.key*
+
+# Local development files
+local-config.php
+dev-settings.php
+debug.php
+
+# Backup scripts output
+backup-*.sql
+backup-*.tar.gz
+
+# Error and access logs
+error.log
+access.log
+php_errors.log
+
+# Session files
+sess_*
+sessions/
+
+# Upload directories (if plugin ever handles uploads)
+uploads/
+media/
+
+# Generated documentation
+api-docs/
+phpdoc/
+
+# Package managers
+yarn.lock
+pnpm-lock.yaml
+
+# IDE workspace files
+*.code-workspace
+.project
+.buildpath
+.settings/
+
+# Vagrant
+.vagrant/
+Vagrantfile.local
+
+# Docker
+.dockerignore
+docker-compose.override.yml
+.docker/
+
+# Ansible
+*.retry
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+
+# Local certificates
+localhost.pem
+localhost-key.pem
+
+# Redis specific ignores
+redis.conf.local
+*.conf.backup
+
+# DirectAdmin specific
+directadmin.log
+da_*.log
+
+# Plugin specific
+instances.json.backup
+plugin.log
+installation.log
+
+# Security scan results
+security-report.*
+vulnerability-scan.*
+
+# Performance logs
+slow.log
+query.log
+performance.log
+
+# Custom local files
+*.local
+*.custom
+
+# Patch files
+*.patch
+*.diff
+
+# Archive files for backup
+archive/
+archived/
+old/
+
+# Maintenance mode files
+maintenance.flag
+maintenance.html
+
+# Feature flags
+features.json
+
+# API keys and secrets (should never be committed)
+api-keys.txt
+secrets.txt
+credentials.json
+auth.json
+
+# Generated files
+generated/
+auto-generated/
+
+# Monitoring and metrics
+metrics/
+monitoring/
+stats/
+
+# Jupyter notebooks (if used for analysis)
+*.ipynb
+
+# Python cache (if any Python tools are used)
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Ruby (if any Ruby tools are used)
+*.gem
+.bundle/
+.ruby-version
+
+# Keep important directories with placeholder files
+!logs/.gitkeep
+!data/.gitkeep
+!tmp/.gitkeep
+!cache/.gitkeep
+
+# Allow specific important files even if they match patterns above
+!README.md
+!CHANGELOG.md
+!LICENSE
+!INSTALL.md
+!SECURITY.md
