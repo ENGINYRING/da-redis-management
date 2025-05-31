@@ -1,19 +1,39 @@
 [Unit]
-Description=Redis instance %i
-After=network.target
-Requires=redis-server.service
-Before=redis-server.service
-BindsTo=redis-server.service
+Description=Redis instance for user %i
+Documentation=http://redis.io/documentation, man:redis-server(1)
+After=network.target redis-server.service
+PartOf=redis-server.service
+ReloadPropagatedFrom=redis-server.service
 
 [Service]
 Type=notify
-ExecStartPre=mkdir -p /home/%i/redis
-ExecStart=/usr/bin/redis-server /etc/redis/redis-%i.conf --supervised systemd --daemonize no
-ExecStop=/usr/libexec/redis-shutdown redis-server@%i
 User=%i
 Group=%i
-RuntimeDirectory=redis
+ExecStartPre=/bin/mkdir -p /home/%i/redis /home/%i/tmp
+ExecStartPre=/bin/chown %i:%i /home/%i/redis /home/%i/tmp
+ExecStart=/usr/bin/redis-server /etc/redis/instances/%i.conf --supervised systemd --daemonize no
+ExecStop=/bin/kill -TERM $MAINPID
+ExecReload=/bin/kill -HUP $MAINPID
+TimeoutStartSec=60
+TimeoutStopSec=30
+Restart=on-failure
+RestartSec=5
+RuntimeDirectory=redis-%i
 RuntimeDirectoryMode=0755
+LimitNOFILE=65535
+
+# Security settings
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectHome=read-only
+ProtectSystem=strict
+ReadWritePaths=/home/%i/redis /home/%i/tmp /run/redis-%i
+
+# Resource limits
+MemoryHigh=512M
+MemoryMax=1G
+TasksMax=4096
 
 [Install]
 WantedBy=redis-server.service
