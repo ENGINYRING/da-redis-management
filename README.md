@@ -1,4 +1,6 @@
-# DirectAdmin Redis Management Plugin
+# WORK IN PROGRESS! DO NOT USE IN PRODUCTION
+
+## DirectAdmin Redis Management Plugin
 
 🚀 **Enhanced Security & Debian 12 Compatible** 🚀
 
